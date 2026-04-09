@@ -9,245 +9,239 @@
 真实 48 分钟 = 游戏内 1 天（24小时）
 ```
 
-**速度控制**（Menu Bar 右上角）：
+**速度控制**（菜单栏右上角）：
+
 ```
 ⏸  [0.5x] [1x] [2x] [4x]   第 3 天 09:00
 ```
 
 **时钟事件**：
-- `clock:hour` — 每游戏小时（AI 事件引擎轮询）
-- `clock:day` — 每游戏天（生活成本扣除，待办到期检查）
-- 不再有 `clock:week` — 周概念移除
 
-**暂停规则**：
-- 暂停时全屏遮罩覆盖 window-container + dock
-- Settings 和 Todo 不受暂停影响
-- 遮罩显示「⏸ 游戏已暂停」
+| 事件 | 触发时机 | 效果 |
+|------|---------|------|
+| `clock:hour` | 每游戏小时 | AI 事件引擎每 2 小时评估；更新时钟 UI |
+| `clock:day` | 每游戏天 | 自动扣除 ¥430；检查待办逾期；触发日邮件注入 |
+| `game:over` | 现金 ≤ 0 | 弹出游戏结束确认，可重置存档 |
 
-## 2.2 资源系统
+**持久化**：时钟状态（当前小时、速度）随 GameState 一起存储，刷新页面后从 `day × 24h + hour` 重建 `accumulatedMs`，保证时间连续。
 
-| 资源 | 说明 | 初始值 |
-|------|------|-------|
-| 💰 现金 | 主要生存资源，归零则游戏结束 | ¥47,200 |
-| 🔥 声誉 | 影响专家接受联系的概率 | 10 |
-| 🤝 人脉 | 量化社交资本，影响机会出现频率 | 5 |
-| 💡 洞察碎片 | 知识积累量，影响内容创作质量 | 0 |
+**暂停**：全屏遮罩覆盖 window-container + dock，Settings/Todo 不受影响。
 
-**固定成本**：每游戏天自动扣除 ¥430（¥3,000/7天，模拟每日生活开支）
+---
 
-> 注：移除行动点系统。玩家可以随时自由使用任何 App，不受次数限制。
-
-## 2.3 Onboarding 流程（全新设计）
-
-Onboarding 分为四个强制串行阶段。
+## 2.2 Onboarding 流程（四阶段，已实现）
 
 ### 阶段 1：登录 + AI 配置
 
 ```
 macOS 风格登录界面
-  └── 输入玩家名称
-  └── 选择语言（中/English）
-  └── 点击「开始」
+  ├── 输入玩家名称
+  ├── 选择语言（中/English）
+  └── 点击「开始 →」（Enter 可触发）
       ↓
-AI 配置向导（不可跳过）
-  └── 选择 AI 服务商
-  └── 输入 API Key
-  └── 测试连接
-  └── [稍后配置] 可跳过，但 NPC 对话受限
+AI 配置向导（全屏浮层）
+  ├── 选择 AI 服务商（9 个，宫格布局）
+  ├── 输入 API Key
+  ├── 选择具体模型
+  ├── 测试连接（实时验证）
+  └── [稍后配置] 跳过，NPC 对话受限
       ↓
-进入游戏桌面
+进入游戏桌面（初始解锁：Mail、Telegram、Todo、Settings）
 ```
 
-### 阶段 2：裁员邮件
+### 阶段 2：裁员邮件确认
 
 ```
-Mail 自动打开
-  └── 收件箱：BigCorp HR 裁员通知（唯一一封邮件）
+Mail 自动打开，收件箱唯一一封邮件：BigCorp HR 裁员通知
   └── 玩家阅读全文
-  └── 底部「确认知悉，接受遣散费」按钮
-  └── 点击 ✅
+  └── 底部按钮：「确认知悉，接受遣散费」（requiresAck 类型）
       ↓
-¥47,200 到账
-待办自动添加：「思考接下来做什么」
-2 秒后触发阶段 3
+点击后：
+  ├── cash += ¥47,200
+  ├── milestone.terminationAcknowledged = true
+  ├── 自动创建 Todo：「思考接下来做什么」（高优先级）
+  └── 2 秒后触发阶段 3
 ```
 
-### 阶段 3：王子墨推荐 Lenny
+### 阶段 3：王子墨 Telegram 推荐 Lenny
 
 ```
-Telegram 通知弹出
-  └── 打开 Telegram，王子墨发来安慰消息（3 条，分批推送）
-  └── 随后提到 Lenny：
-      "你可以用 Safari 搜一下「Lenny Rachitsky」，
-       他在 X 上很活跃，很多创业者私信过他，回复率挺高的。"
+Telegram 通知弹出，切换到 Telegram App
+  └── 王子墨发来 3 条安慰消息（分批，每条间隔 1.8 秒）
+  └── 随后推荐 Lenny（3 条，每条间隔 2.2 秒）：
+      「你可以用 Safari 搜一下 Lenny Rachitsky，
+       他在 X 上很活跃，很多创业者私信过他，回复率挺高的。」
       ↓
-Safari 自动解锁 + 弹出 Safari 窗口
-待办自动添加：「在 Safari 搜索 Lenny Rachitsky 并在 X 上私信他」（高优先级）
+Safari 自动解锁 → 弹出解锁通知
+自动创建 Todo：「在 Safari 搜索 Lenny 并在 X 上私信他」（高优先级）
+Safari 窗口自动打开（1.5 秒后）
 ```
 
-### 阶段 4：寻找 Lenny & 制定 OPC 方向
-
-这是 Onboarding 的核心阶段，引导玩家完成 OPC 定向。
+### 阶段 4：寻找 Lenny（玩家主动完成）
 
 ```
-玩家在 Safari 搜索「Lenny Rachitsky」
-  └── 显示 Lenny 个人页（模拟 lennysnewsletter.com）
-  └── 页面上有 X 私信入口
+玩家在 Safari 搜索「lenny」或「lenny rachitsky」
+  └── 显示 Lenny 个人资料页（模拟 lennysnewsletter.com）
+  └── 包含：简介 / 标签 / 社交链接 / 「如何联系到 Lenny」提示卡
       ↓
-点击「→ 在 X 上私信 Lenny」
-  └── 打开虚拟 X（游戏内模拟 X 界面）
-  └── 预填私信内容（玩家可编辑）
-  └── 点击「发送」
-  └── 2 秒后 Lenny 回复，给出 Telegram handle
-  └── 「添加到 Telegram」按钮
+点击「→ 打开 X，给 Lenny 发私信」或「𝕏 @lennysnewsletter」
+  └── 打开虚拟 X DM 界面（黑色 X 风格）
+  └── 预填消息（玩家可编辑）
+  └── 点击「发送」→ 2 秒后 Lenny 回复（给出 Telegram handle）
+  └── 显示「+ 添加 Lenny 到 Telegram」按钮
       ↓
-Lenny 添加到 Telegram 联系人
-  └── Lenny 在 Telegram 发来第一条消息（欢迎 + 引导对话）
-  └── Lenny 提问：「你现在有没有一个大概的方向？」
-      ↓
-玩家与 Lenny 进行 OPC 定向对话（AI 驱动）
-  └── Lenny 帮助玩家明确：
-      · OPC 方向（产品/服务/内容/SaaS 等）
-      · 目标受众
-      · 宏观目标（例：6个月内月收入¥10,000）
-      └── Lenny AI 在认为方向足够清晰后，说：
-          「好，我帮你把这个目标拆解一下……」
-          ↓
-Lenny AI 输出结构化里程碑（JSON 格式）
-  └── 游戏解析里程碑，写入 TodoApp（高优先级）
-  └── 写入 GameState.opc_goals
-  └── Onboarding 完成标志设为 true
-      ↓
-✅ Onboarding 完成
-通知：「你的 OPC 之旅正式开始！」
-解锁所有核心 App（Messages、Podcast、Numbers、Calendar）
-进入自由探索阶段
+点击添加：
+  ├── lenny_rachitsky 加入 addedContacts
+  ├── MemoryManager.increaseTrust('lenny_rachitsky', 20)
+  ├── 自动创建 Todo：「打开 Telegram，和 Lenny 聊聊你的 OPC 方向」
+  └── 通知：「Lenny Rachitsky 已添加到联系人！」
+
+（Onboarding 完成。后续 OPC 目标设定功能待实现）
 ```
 
-**Lenny OPC 定向对话的 System Prompt 示例**：
+---
 
-```
-你是 Lenny Rachitsky，正在帮助一位刚被裁员的产品经理规划他的 OPC（一人公司）。
-你的目标是：
-1. 通过对话了解他的背景、技能和兴趣
-2. 帮助他明确一个具体的 OPC 方向
-3. 将这个方向拆解为 3-5 个可操作的里程碑
-4. 当方向足够清晰时，以 JSON 格式输出里程碑
+## 2.3 自由探索阶段
 
-输出格式（当你认为方向明确时）：
-{
-  "opc_direction": "B2B SaaS 产品顾问",
-  "target_audience": "10-50人规模的初创公司",
-  "opc_goal": "6个月内月收入¥10,000",
-  "milestones": [
-    { "title": "确定服务定价和方案", "priority": "high", "dueDay": 7 },
-    { "title": "找到第一个付费客户", "priority": "high", "dueDay": 30 },
-    { "title": "完成 3 次付费咨询", "priority": "normal", "dueDay": 60 },
-    { "title": "建立个人品牌内容（发布 3 篇文章）", "priority": "normal", "dueDay": 90 }
-  ]
-}
-
-在输出 JSON 之前，在对话中先用自然语言告知玩家里程碑，获得确认后再输出 JSON。
-```
-
-## 2.4 自由探索阶段
-
-Onboarding 完成后，进入无限制的自由探索模式。
-
-### 玩家可以做什么
+Onboarding 完成后进入无约束的自由探索。玩家可以：
 
 **与 NPC 互动**：
-- 通过 Messages 与已添加的专家深度对话
-- 通过 Telegram 与王子墨聊天
-- 付费咨询（需达到「认识」关系）
-- 雇佣 NPC 完成项目（需达到「合作中」关系）
-- 请 NPC 合作（联合创作、联合服务）
+- Telegram 与王子墨聊天（AI 驱动，角色为「普通朋友」，不给专业建议）
+- Telegram 与已发现专家通过引荐渠道建立联系
+- 专家对话：每条回复都参考对话上下文 + 玩家近期活动 + 知识片段
+- 付费咨询（关系≥「认识」时解锁，扣除 `consultFee`）
 
 **主动搜索与学习**：
-- Safari 搜索市场情报、竞品、潜在客户
-- Podcast 收听增加洞察碎片
-- Discord 社群互动
+- Safari 搜索（真实 DuckDuckGo + 关键词触发专家卡片）
+- Podcast 收听（YouTube 嵌入，首次/再次收听奖励不同）
+- Discord 社群互动（触发隐藏专家郑磊）
 
 **推进里程碑**：
-- 玩家在 Todo 中完成里程碑任务
-- 也可在任何时候和 Lenny（或其他专家）重新讨论、调整目标
+- 在 Todo 中完成里程碑任务
+- 完成里程碑触发叙事事件和资源奖励
 
-### 游戏的推进动力
+---
 
-游戏进程不由时间周期驱动，而由以下因素驱动：
+## 2.4 NPC 对话系统
 
-1. **里程碑完成**：完成 Todo 中的里程碑 → 触发叙事事件 + 解锁新内容
-2. **收入增长**：现金变化 → 影响 AI 事件引擎的评判
-3. **声誉积累**：声誉提升 → 解锁更多专家、更大机会
-4. **关系深化**：NPC 信任度提升 → 引荐新专家、解锁合作模式
+### PromptBuilder 结构
 
-### NPC 互动模式
+每次 NPC 回复生成的 system prompt 包含：
 
-| 模式 | 解锁条件 | 效果 |
-|------|---------|------|
-| 对话 | 添加联系人 | 获得建议、信息，信任度 +小 |
-| 付费咨询 | 关系≥「认识」 | 深度建议，扣除咨询费，信任度 +中 |
-| 雇佣（项目）| 关系≥「合作中」 | NPC 帮助完成特定项目，需支付报酬 |
-| 合作 | 关系≥「深度伙伴」 | 联合创作/服务，分享收益 |
+```
+1. 角色定义：[专家名称] + [头衔] + [性格/说话风格]
+2. 对话对象：玩家名 + 当前天数 + 关系描述
+3. 玩家 beliefs：NPC 对玩家的认知（最多 10 条）
+4. 玩家近期活动：ActivityLogger 最近 5 条记录
+5. 对话上下文：最近 4 条消息（确保上下文一致）
+6. 知识片段：关键词匹配时注入（灵感参考，不得逐字引用）
+7. 专业边界：明确的 offTopic 列表
+8. 8 条强制规则（不出戏/引用上下文/保持性格/边界拒绝/简短口语化）
+```
 
-### 经济循环
+### 话题边界规则
 
-玩家通过以下方式获得现金：
-- 接受顾问邀请（邮件选择类事件）
-- 完成雇佣 NPC 后交付的项目
-- AI 事件引擎基于声誉和人脉生成的机会
+每位专家在 `boundaries.offTopic` 中定义不回答的话题。当玩家提问超出范围时，NPC 必须：
+- 坦诚说「这不是我最擅长的」
+- 给出符合自身性格的拒绝话术（`deflect` / `enDeflect`）
+- 可以建议找更合适的专家
 
-玩家的支出：
-- 每天 ¥430 生活成本
-- 付费咨询费用
-- 雇佣 NPC 的报酬
+### 关系层级与信任度
+
+| 关系 | 信任分 | 解锁内容 |
+|------|-------|---------|
+| 陌生 | 0–39 | 基本对话 |
+| 认识 | 40–59 | 付费咨询；专家开始主动发 Telegram |
+| 合作中 | 60–79 | 更深度建议；可触发引荐；可雇佣 |
+| 深度伙伴 | 80–100 | 专家主动推荐新人脉；联合合作 |
+
+信任度变化：
+- 每次对话 +3
+- 付费咨询 +10
+- 完成 NPC 承诺 +5
+- 逾期普通承诺 -8
+- 逾期高优先级承诺 -15
+
+---
 
 ## 2.5 AI 事件引擎
 
-每 2 游戏小时评估玩家状态，动态生成事件。
+每 2 游戏小时（偶数整点）由 `clock:hour` 触发评估。
 
 ### 叙事约束
 
-| 时间 | 允许的事件类型 |
-|------|-------------|
-| Day 1-3 | 仅朋友问候（王子墨），严禁商业机会 |
-| Day 4-7 | 可出现轻量机会（如朋友的顾问邀请） |
+| 时间段 | 允许的事件类型 |
+|--------|-------------|
+| Day 1–3 | 仅朋友问候（王子墨 Telegram），**禁止任何商业机会** |
+| Day 4–7 | 可出现轻量机会（朋友的顾问邀请） |
 | Day 8+ | 基于声誉和人脉，概率性生成商业机会 |
-| 任何时间 | VC 类事件需声誉 ≥ 40 且已发布内容 |
+| 任何时间 | VC 事件需声誉 ≥ 40 且已有公开内容 |
+| 任何时间 | 同一天最多 1 个重要事件；同类型间隔 ≥ 3 天 |
 
 ### 事件渠道
 
-| 性质 | 渠道 |
-|------|------|
-| 正式商务（客户、合同、VC） | Mail |
-| 朋友关心、引荐、非正式建议 | Telegram |
-| 待办到期、成就解锁 | 系统通知 |
-| 搜索触发的叙事线 | Safari 卡片 |
+| 渠道 | 适用场景 |
+|------|---------|
+| Mail | 正式商务：客户询盘、合同、VC 接触、媒体邀请 |
+| Telegram | 朋友关心、引荐、非正式建议 |
+| 系统通知 | 待办逾期提醒、成就解锁、App 解锁 |
+| Safari 剧情卡片 | 搜索特定关键词触发专家发现 |
 
-## 2.6 Calendar（日历）
+### AI 输出格式（JSON）
 
-**定位**：只读时间线视图，显示来自 Todo 中有日期的任务。
+```json
+{
+  "event": "mail | telegram | notification | none",
+  "type": "opportunity | social | risk | reward | info",
+  "from": "王子墨",
+  "fromId": "wangzimo",
+  "subject": "邮件主题（mail 时使用）",
+  "body": "消息正文",
+  "effects": { "cash": 0, "reputation": 2, "network": 1 },
+  "choices": [
+    { "label": "选项文字", "effect": {}, "log": "choice_id" }
+  ],
+  "addTodo": { "title": "待办标题", "priority": "normal" },
+  "reason": "内部原因（不展示给玩家）"
+}
+```
 
-- 不再有「行动分配」或「结束本周」
-- 显示按天分组的待办任务
-- 点击任务跳转 Todo App
-- 逾期任务标红
+---
 
-## 2.7 Safari 触发剧情
+## 2.6 承诺追踪系统
 
-| 搜索内容 | 触发 |
-|---------|------|
-| `Lenny Rachitsky` / `lenny` | Lenny 个人页 → X 私信流程 |
-| `x.com/lennysrachitsky` | X DM 模拟界面 |
+当玩家在对话中对 NPC 做出承诺，系统自动创建带 `npcId` 字段的待办。
+
+- Todo 过期未完成 → NPC 信任度 -8（普通）/ -15（高优先级）
+- 完成承诺 → NPC 信任度 +5，触发正向事件
+- Calendar 展示有 `scheduledWeek` / `dueWeek` 的待办（只读）
+
+---
+
+## 2.7 Safari 剧情触发
+
+| 搜索内容 | 触发效果 |
+|---------|---------|
+| `lenny` / `lenny rachitsky` / `lenny podcast` | Lenny 个人资料页 → X DM 流程 |
+| `x.com` / `twitter.com` | 虚拟 X DM 界面 |
 | `bootstrap` / `一人公司` | Jason Fried 专家卡片 |
-| `SaaS 定价` / `pricing` | Patrick Campbell 专家卡片 |
+| `定价` / `pricing` / `SaaS` | Patrick Campbell、April Dunford 专家卡片 |
 | `PLG` / `product led growth` | Elena Verna 专家卡片 |
-| `产品发布` / `product launch` | Ryan Hoover 专家卡片 |
-| `产品定位` / `positioning` | April Dunford 专家卡片 |
+| `发布` / `launch` / `product hunt` | Ryan Hoover 专家卡片 |
+| `定位` / `positioning` | April Dunford 专家卡片 |
+| `分发` / `distribution` | Brian Balfour 专家卡片 |
+| `设计` / `design` | Julie Zhuo 专家卡片 |
+| `OPC` / `商业模式` | Andrew Wilkinson 专家卡片 |
+| 其他关键词 | 真实 DuckDuckGo 搜索结果 + 相关专家卡片 |
 
-## 2.8 承诺追踪系统
+---
 
-当玩家在对话中对 NPC 做出承诺（由 AI 识别），系统自动创建带 `npcId` 的待办。
+## 2.8 应用解锁时机
 
-- 逾期未完成 → NPC 信任度 -8（普通承诺）/ -15（高优先级承诺）
-- 完成承诺 → NPC 信任度 +5，触发正向反馈
+| App | 解锁条件 | 实现方式 |
+|-----|---------|---------|
+| Mail, Telegram, Todo, Settings | 游戏开始即解锁 | `DEFAULT_STATE.unlockedApps` |
+| Calendar, Numbers, Podcast | 游戏开始即解锁（当前实现） | `DEFAULT_STATE.unlockedApps` |
+| Safari | 王子墨推荐 Lenny 后 | `triggerOnboarding()` 中 `DockManager.unlock('safari')` |
+| Discord | Day 5+ | `WeekCycleEngine.checkDayUnlocks()` |
+| Contacts | 发现 ≥1 名专家 | `WeekCycleEngine.checkDayUnlocks()` 检查 `discoveredExperts` |

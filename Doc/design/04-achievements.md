@@ -2,88 +2,121 @@
 
 ## 4.1 成就系统
 
-成就是对玩家特定行为的奖励，不影响游戏核心机制，但提供额外满足感。
+成就是对玩家特定行为的奖励，不影响游戏核心机制，提供额外满足感。
 
-### 基础成就
+解锁时：系统通知弹出 `🏆 成就解锁 — [名称]`，在 Settings「游戏状态」Tab 和 Numbers 数据看板中展示。
 
-| 成就 ID | 名称 | 触发条件 | 说明 |
-|--------|------|---------|------|
-| `night_owl` | 深夜创业者 | 真实时间凌晨 0-5 点开启游戏 | 向所有在深夜工作的人致敬 |
-| `first_client` | 第一桶金 | 获得第一笔收入 | 无论金额大小 |
-| `community_pillar` | 社群支柱 | Discord 贡献 ≥ 30 | 活跃社群成员 |
-| `no_vc` | 断舍离 | 拒绝 VC 邀约 3 次 | 坚守 OPC 路线 |
-| `tidy_desk` | 整洁桌面 | 右键菜单「整理桌面」 | 一个轻松的彩蛋 |
-| `speed_runner` | 快速启动 | 7 天内找到第一个付费客户 | 快速执行力 |
-| `deep_thinker` | 深度思考者 | 洞察碎片达到 20 个 | 大量学习和研究 |
-| `well_connected` | 人脉王 | 添加 5 位专家联系人 | 广泛的社交网络 |
-| `trusted_advisor` | 信任伙伴 | 与任意专家达到「深度伙伴」关系 | 深厚的专业关系 |
-| `content_creator` | 内容创作者 | 发布 5 篇内容 | 建立个人品牌 |
+### 已实现的成就触发
 
-### 隐藏成就（不预先提示）
+| 成就 ID | 触发条件 | 触发代码位置 |
+|--------|---------|------------|
+| `late_night_coder` | 真实时间凌晨 0–5 点打开游戏 | `main.js init()` |
+| `断舍离` | 拒绝 VC 邀约累计 3 次 | `mail.js` 选项处理（`vcOffersDeclined >= 3`）|
+
+### 计划中的成就
 
 | 成就 ID | 名称 | 触发条件 |
 |--------|------|---------|
-| `lenny_fan` | Lenny 粉丝 | 收听 Lenny 相关的全部播客集 |
-| `comeback_kid` | 东山再起 | 现金跌破 ¥5,000 后回到 ¥50,000 |
-| `polyglot` | 双语创始人 | 在游戏中切换语言超过 3 次 |
-| `midnight_dm` | 午夜私信 | 在游戏内时间 23:00-01:00 私信 NPC |
+| `first_client` | 第一桶金 | 获得第一笔收入（`milestone.firstIncome`）|
+| `community_pillar` | 社群支柱 | Discord 互动 ≥ 30 次 |
+| `no_vc` | 断舍离 | 拒绝 VC 3 次（已实现触发，badge 待完善）|
+| `tidy_desk` | 整洁桌面 | 右键菜单「整理桌面」|
+| `speed_runner` | 快速启动 | Day 7 内获得第一个付费客户 |
+| `deep_thinker` | 深度思考者 | 洞察碎片 ≥ 20 |
+| `well_connected` | 人脉王 | 添加 5 位专家联系人 |
+| `trusted_advisor` | 信任伙伴 | 与任意专家达到「深度伙伴」关系 |
+| `lenny_fan` | Lenny 粉丝 | 收听所有 Lenny 相关播客 |
+| `comeback_kid` | 东山再起 | 现金跌破 ¥5,000 后回到 ¥50,000+ |
 
-## 4.2 NPC 解锁系统
+---
 
-### 默认状态
+## 4.2 NPC 专家解锁条件
 
-- **王子墨**：游戏开始即可用（Telegram，非专家）
-- **Lenny Rachitsky**：Onboarding 阶段 4，X DM 流程后添加
+### 当前 10 位专家
 
-### 其他专家解锁条件
+| 专家 | `unlockCondition` | 主要发现渠道 | 咨询费 |
+|------|----------|------------|-------|
+| Lenny Rachitsky | `initial` | Safari 搜 lenny → X DM | ¥800 |
+| Jason Fried | `podcast` | 播客收听 / Safari 搜 `bootstrap` | ¥1,200 |
+| April Dunford | `podcast` | 播客收听 / Safari 搜 `positioning` | ¥1,000 |
+| Patrick Campbell | `podcast` | 播客收听 / Safari 搜 `pricing` | ¥1,000 |
+| Shreyas Doshi | `podcast` | 播客收听 / Lenny 引荐 | ¥900 |
+| Elena Verna | `podcast` | 播客收听 / Safari 搜 `PLG` | ¥1,000 |
+| Ryan Hoover | `podcast` | 播客收听 / Safari 搜 `launch` | ¥900 |
+| Julie Zhuo | `podcast` | 播客收听 / Safari 搜 `design` | ¥950 |
+| Andrew Wilkinson | `referral` | 专家引荐（需 ≥2 个合作中关系）| ¥1,500 |
+| Brian Balfour | `podcast` | 播客收听 / Safari 搜 `distribution` | ¥900 |
+| 郑磊（隐藏） | `discord` | Discord 互动 ≥ 3 次 | ¥500 |
 
-| 专家 | 解锁渠道 | 前置条件 |
+### 专家发现流程
+
+无论通过哪种渠道，流程统一为：
+
+```
+发现专家（播客/搜索/引荐/Discord）
+    ↓
+显示专家卡片（头像、简介、专长标签）
+    ↓
+点击「联系专家」/ 「添加到 Telegram」
+    ↓
+`discoveredExperts[id]` 更新 + 信任度 +5
+Telegram 联系人列表出现该专家
+    ↓
+收到专家的 introMessage（首次欢迎消息）
+```
+
+---
+
+## 4.3 NPC 专业边界（Boundaries）
+
+每位专家都有明确的话题边界定义，PromptBuilder 会将其注入 system prompt：
+
+```js
+// 示例：Jason Fried
+boundaries: {
+  offTopic: ['风险投资', 'VC 融资策略', '增长黑客', '广告投放', '销售漏斗优化', '技术架构'],
+  deflect: '这块我不擅长——我们 37signals 一直避开这些，所以我没什么实际经验可以分享',
+  enDeflect: "I don't have useful experience there — we've actively avoided that at 37signals, so I'd be making things up"
+}
+```
+
+各专家专业范围：
+
+| 专家 | 专业范围 | 明确排除 |
 |------|---------|---------|
-| Jason Fried | 播客收听 / Safari 搜索 `bootstrap` / `一人公司` | 无 |
-| April Dunford | 播客收听 / Safari 搜索 `positioning` / `产品定位` | 无 |
-| Patrick Campbell | 播客收听 / Safari 搜索 `SaaS pricing` / `定价` | 无 |
-| Shreyas Doshi | 播客收听 / Lenny 引荐（关系≥合作中）| 无 |
-| Elena Verna | 播客收听 / Safari 搜索 `PLG` | 无 |
-| Ryan Hoover | 播客收听 / Safari 搜索 `product launch` | 无 |
-| Julie Zhuo | 播客收听 / Safari 搜索 `design` / `设计` | 无 |
-| Andrew Wilkinson | 专家引荐（需≥2位专家达到合作中）| 声誉 ≥ 30 |
-| Brian Balfour | 播客收听 / Safari 搜索 `distribution` / `分发` | 无 |
-| 郑磊（隐藏） | Discord 发言 ≥ 3 次 且 贡献 ≥ 20 | 加入 Discord |
+| Lenny | PMF、增长、定价、产品策略、职业发展 | 法律、财务会计、技术架构、健康 |
+| Jason Fried | Bootstrap、盈利性、产品设计、远程文化 | VC 融资、增长黑客、广告投放 |
+| April Dunford | 产品定位、GTM、B2B 销售、竞争差异化 | 增长黑客、PLG、技术实现、融资 |
+| Patrick Campbell | 定价策略、SaaS 指标、流失率、收入优化 | 产品设计、内容营销、技术架构 |
+| Shreyas Doshi | 产品策略、优先级、执行框架、PM 职业 | 定价、销售、融资、技术实现 |
+| Elena Verna | B2B 增长、PLG、激活留存、增长指标 | 产品定位、销售话术、设计 |
+| Ryan Hoover | 产品发布、社区建设、消费者产品 | B2B 销售、SaaS 定价、增长系统 |
+| Julie Zhuo | 产品设计、设计领导力、管理、职业成长 | 定价、销售、融资、增长黑客 |
+| Andrew Wilkinson | 商业模式、Bootstrap、收购、创业想法验证 | 技术开发、增长黑客、用户研究 |
+| Brian Balfour | 增长系统、分发渠道、留存、B2B 增长 | 产品定位、设计、融资、定价 |
 
-### 专家关系升级路径
+---
+
+## 4.4 App 解锁顺序（当前实现）
+
+| App | 解锁时机 | 实现位置 |
+|-----|---------|---------|
+| Mail, Telegram, Todo, Calendar, Numbers, Podcast, Settings | 游戏开始 | `DEFAULT_STATE.unlockedApps` |
+| Safari | 王子墨 Onboarding 推荐后 | `imessage.js triggerOnboarding()` |
+| Discord | Day 5+ | `engine.js checkDayUnlocks()` |
+| Contacts | 发现 ≥1 名专家 | `engine.js checkDayUnlocks()` |
+
+---
+
+## 4.5 关系层级与解锁权益
 
 ```
 陌生（0-39）→ 认识（40-59）→ 合作中（60-79）→ 深度伙伴（80-100）
 ```
 
-**关系升级方式**：
-- 每次对话 +3 信任度
-- 付费咨询 +10 信任度
-- 完成承诺 +5 信任度
-- 逾期承诺 -8/-15 信任度
-
-**关系升级解锁**：
-
-| 关系等级 | 解锁内容 |
-|---------|---------|
-| 认识 | 可发起付费咨询；专家开始通过 Telegram 分享非正式建议 |
-| 合作中 | AI 回复更深入；可触发引荐其他专家；可雇佣专家做项目 |
-| 深度伙伴 | 专家主动通过 Telegram 推荐新人脉；可发起合作模式 |
-
-## 4.3 App 解锁顺序
-
-| App | 解锁时机 |
-|-----|---------|
-| Mail, Telegram, Todo, Settings | 游戏开始即解锁 |
-| Calendar, Numbers, Podcast | Onboarding 完成后（与 Lenny 确定方向后）|
-| Safari | 王子墨推荐 Lenny 后自动解锁 |
-| Messages | 第一位专家添加联系人后 |
-| Contacts | 第一位专家添加后 |
-| Discord | Day 5+ 或 Safari 搜索「OPC」/「一人公司」|
-
-## 4.4 成就通知
-
-成就解锁时：
-- 系统通知弹出（右上角）：`🏆 成就解锁 — [成就名称]`
-- 在 Settings「玩家档案」页面的成就列表中显示
-- Numbers 数据看板底部显示成就徽章
+| 关系 | 权益 |
+|------|------|
+| 陌生 | 基本对话 |
+| 认识 | 付费咨询解锁；专家开始通过 Telegram 主动分享非正式建议 |
+| 合作中 | AI 回复更深入；可触发引荐；可雇佣专家参与项目 |
+| 深度伙伴 | 专家主动通过 Telegram 推荐新人脉；可发起联合合作 |
