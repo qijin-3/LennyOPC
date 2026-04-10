@@ -276,6 +276,7 @@ const Onboarding = {
 function init() {
   const isNew = GameState.init();
   AIConfig.init();
+  NPC_REGISTRY.init();
   WindowManager.init();
   DockManager.init();
   MenuBarManager.init();

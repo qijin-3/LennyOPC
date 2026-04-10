@@ -93,7 +93,9 @@ const iMessageApp = {  // keep global name for compatibility
 
   _getExpertContacts() {
     const discovered = GameState.get('discoveredExperts') || {};
+    const added = GameState.get('addedContacts') || [];
     return EXPERTS.filter(e =>
+      added.includes(e.id) ||
       discovered[e.id]?.channel === 'imessage_referral' ||
       discovered[e.id]?.channel === 'referral'
     ).map(e => ({
@@ -318,11 +320,10 @@ const iMessageApp = {  // keep global name for compatibility
     let response = null;
     try {
       let systemPrompt, history;
-      if (contact.isExpert) {
-        const expert = EXPERTS.find(e => e.id === contact.id);
-        systemPrompt = PromptBuilder.build(expert, text);
-        const mem = MemoryManager.getMemory(contact.id);
-        history = mem.recentMessages.slice(-6);
+      if (contact.isExpert || contact.id === 'wangzimo') {
+        systemPrompt = NPCManager.buildPrompt(contact.id, text);
+        const mem = NPCManager.getMemory(contact.id);
+        history = mem.recentMessages.slice(-6).map(m => ({ role: m.role, content: m.content }));
       } else {
         systemPrompt = getWangzimoSystem();
         history = msgs.slice(-8).map(m => ({ role: m.role, content: m.content }));
@@ -336,6 +337,17 @@ const iMessageApp = {  // keep global name for compatibility
     const updatedMsgs = this._getMessages(contact.id);
     updatedMsgs.push({ role: 'assistant', content: response, read: true, ts: Date.now() });
     this._saveMessages(contact.id, updatedMsgs);
+
+    // persist to NPCManager memory + trigger async updates
+    NPCManager.appendMessage(contact.id, 'user', text);
+    NPCManager.appendMessage(contact.id, 'assistant', response);
+    NPCManager.increaseTrust(contact.id, 2);
+    if (response !== t('msg.ai_error')) {
+      NPCManager.updateMemoryAfterChat(contact.id, text, response);
+      NPCManager.checkMissionProgress(contact.id, text, response);
+      NPCManager.checkReferralTrigger(contact.id, text);
+    }
+
     ActivityLogger.log('message', { expertId: contact.id, topic: text.slice(0, 30), channel: 'telegram' });
 
     if (input) { input.disabled = false; input.focus(); }

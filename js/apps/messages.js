@@ -1,7 +1,10 @@
 'use strict';
 
-// ===== MemoryManager =====
-const MemoryManager = {
+// MemoryManager and PromptBuilder are defined in js/npc-manager.js
+// keeping a stub comment here so MessagesApp below can still reference them via the shims
+
+// ===== MemoryManager (REMOVED — defined in npc-manager.js) =====
+const _MemoryManager_REMOVED = {
   getMemory(expertId) {
     const npcMemory = GameState.get('npcMemory') || {};
     return npcMemory[expertId] || {
@@ -52,8 +55,8 @@ const MemoryManager = {
   }
 };
 
-// ===== PromptBuilder =====
-const PromptBuilder = {
+// ===== PromptBuilder (REMOVED — defined in npc-manager.js) =====
+const _PromptBuilder_REMOVED = {
   build(expert, playerMessage) {
     const mem = MemoryManager.getMemory(expert.id);
     const state = GameState.getAll();
